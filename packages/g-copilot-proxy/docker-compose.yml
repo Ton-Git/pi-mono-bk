@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  g-copilot-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: g-copilot-proxy
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=g-copilot-proxy
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=INFO
+      - AUTH_MODE=passthrough
+      - PIAI_MODULE_PATH=/app/ai
+      - CORS_ORIGINS=["*"]
+    volumes:
+      # Mount pi-ai module if running from monorepo
+      - ../ai:/app/ai:ro
+      # Persist OAuth credentials
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
