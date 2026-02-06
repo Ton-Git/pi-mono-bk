@@ -276,7 +276,7 @@ Support pluggable authentication modes via configuration, starting with:
 
 **Configuration:**
 ```bash
-AUTH_MODE=passthrough|managed
+AUTH_MODE=managed|managed
 ```
 
 **Consequences:**

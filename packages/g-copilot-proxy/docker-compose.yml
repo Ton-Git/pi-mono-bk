@@ -13,7 +13,7 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - LOG_LEVEL=INFO
-      - AUTH_MODE=passthrough
+      - AUTH_MODE=managed
       - PIAI_MODULE_PATH=/app/ai
       - CORS_ORIGINS=["*"]
     volumes:

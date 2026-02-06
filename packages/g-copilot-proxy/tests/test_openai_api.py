@@ -25,7 +25,7 @@ class TestOpenAIChatCompletions:
         # Missing model field
         request = {"messages": [{"role": "user", "content": "Hi"}]}
         response = test_client.post("/v1/chat/completions", json=request)
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_invalid_message_role(self, test_client):
         """Test request with invalid message role."""
@@ -34,4 +34,4 @@ class TestOpenAIChatCompletions:
             "messages": [{"role": "invalid", "content": "Hi"}],
         }
         response = test_client.post("/v1/chat/completions", json=request)
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

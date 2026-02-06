@@ -24,9 +24,7 @@ class Settings(BaseSettings):
     copilot_enterprise_url: Optional[str] = None
 
     # Authentication settings
-    auth_mode: str = "passthrough"  # "passthrough" or "managed"
-    api_key_header: str = "Authorization"
-    api_key_prefix: str = "Bearer "
+    auth_mode: str = "managed"  # Only "managed" is supported (GitHub OAuth device flow)
 
     # CORS settings
     cors_origins: list[str] = ["*"]

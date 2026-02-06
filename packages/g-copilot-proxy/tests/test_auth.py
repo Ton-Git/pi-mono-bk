@@ -14,6 +14,7 @@ class TestAuthEndpoints:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "mode" in data
+        assert data["mode"] == "managed"
 
     def test_get_auth_status(self, test_client):
         """Test auth status."""
@@ -21,4 +22,4 @@ class TestAuthEndpoints:
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["mode"] == "passthrough"
+        assert data["mode"] == "managed"

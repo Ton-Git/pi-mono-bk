@@ -736,7 +736,7 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - LOG_LEVEL=INFO
-      - AUTH_MODE=passthrough
+      - AUTH_MODE=managed
       - PIAI_MODULE_PATH=/app/ai
       - CORS_ORIGINS=["*"]
     volumes:
@@ -992,7 +992,7 @@ PIAI_MODULE_PATH=/app/ai
 PIAI_NODE_PATH=node
 
 # Authentication
-AUTH_MODE=passthrough
+AUTH_MODE=managed
 API_KEY_HEADER=Authorization
 API_KEY_PREFIX=Bearer
 
@@ -1127,7 +1127,7 @@ docker run -d \
     --name ${CONTAINER_NAME} \
     -p 8000:8000 \
     -v $(pwd)/../ai:/app/ai:ro \
-    -e AUTH_MODE=passthrough \
+    -e AUTH_MODE=managed \
     -e LOG_LEVEL=INFO \
     ${IMAGE_NAME}:latest
 
@@ -1204,7 +1204,7 @@ docker build -t g-copilot-proxy .
 # Run container
 docker run -p 8000:8000 \
     -v $(pwd)/../ai:/app/ai:ro \
-    -e AUTH_MODE=passthrough \
+    -e AUTH_MODE=managed \
     g-copilot-proxy
 
 # Or with docker-compose

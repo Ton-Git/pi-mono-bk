@@ -29,7 +29,7 @@ class TestAnthropicMessagesEndpoint:
             "messages": [{"role": "user", "content": "Hi"}],
         }
         response = test_client.post("/v1/messages", json=request)
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_missing_max_tokens(self, test_client):
         """Test request without max_tokens."""
@@ -38,4 +38,4 @@ class TestAnthropicMessagesEndpoint:
             "messages": [{"role": "user", "content": "Hi"}],
         }
         response = test_client.post("/v1/messages", json=request)
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

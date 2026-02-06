@@ -10,24 +10,21 @@ settings = get_settings()
 
 
 class AuthConfig:
-    """Authentication configuration."""
+    """Authentication configuration.
+
+    GitHub Copilot requires OAuth device flow - personal access tokens are not supported.
+    """
 
     def __init__(self):
         self.mode = settings.auth_mode
-        self.api_key_header = settings.api_key_header
-        self.api_key_prefix = settings.api_key_prefix
         self.credentials_path = Path(".copilot-auth.json")
-
-    def is_pass_through(self) -> bool:
-        """Check if running in pass-through mode."""
-        return self.mode == "passthrough"
 
     def is_managed(self) -> bool:
         """Check if running in managed mode."""
         return self.mode == "managed"
 
     def get_stored_credentials(self) -> Optional[dict]:
-        """Get stored OAuth credentials (managed mode only)."""
+        """Get stored OAuth credentials."""
         if not self.credentials_path.exists():
             return None
 
@@ -40,7 +37,7 @@ class AuthConfig:
             return None
 
     def save_credentials(self, credentials: dict) -> None:
-        """Save OAuth credentials (managed mode only)."""
+        """Save OAuth credentials."""
         try:
             import json
             with open(self.credentials_path, "w") as f:

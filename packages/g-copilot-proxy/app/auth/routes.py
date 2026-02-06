@@ -1,6 +1,7 @@
 """Authentication endpoints."""
 
 import logging
+import uuid
 from typing import Optional
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
@@ -45,19 +46,11 @@ async def login_oauth(request: Request, login_req: LoginRequest, background_task
     """
     Initiate GitHub Copilot OAuth login.
 
-    In managed mode, this starts the OAuth flow. The client should poll
-    /auth/status to check when login is complete.
-
-    In pass-through mode, this returns an error since OAuth is not used.
+    This starts the GitHub Device Authorization Flow.
+    Check the server logs for the device code and verification URL.
+    Poll /auth/status to check when login is complete.
     """
     config = get_auth_config()
-
-    if config.is_pass_through():
-        raise HTTPException(
-            status_code=400,
-            detail="OAuth login not available in pass-through mode. "
-                   "Send your GitHub Copilot token in the Authorization header.",
-        )
 
     # Start OAuth in background
     async def do_oauth():
@@ -100,12 +93,11 @@ async def login_oauth(request: Request, login_req: LoginRequest, background_task
                     "error": str(e),
                 }
 
-    import uuid
     background_tasks.add_task(do_oauth)
 
     return LoginResponse(
         status="started",
-        message="OAuth flow initiated. Poll /auth/status to check completion.",
+        message="OAuth flow initiated. Check server logs for device code. Poll /auth/status to check completion.",
     )
 
 
@@ -114,7 +106,7 @@ async def get_auth_status(request: Request):
     """
     Get authentication status.
 
-    Returns the current auth mode and whether credentials are available.
+    Returns whether OAuth credentials are available.
     """
     config = get_auth_config()
 
@@ -136,17 +128,8 @@ async def get_auth_status(request: Request):
 async def logout(request: Request):
     """
     Clear stored OAuth credentials.
-
-    Only applicable in managed mode.
     """
     config = get_auth_config()
-
-    if config.is_pass_through():
-        raise HTTPException(
-            status_code=400,
-            detail="Logout not applicable in pass-through mode.",
-        )
-
     config.clear_credentials()
 
     return LogoutResponse(
@@ -159,13 +142,9 @@ async def logout(request: Request):
 async def get_auth_config_info(request: Request):
     """
     Get current authentication configuration.
-
-    Returns the auth mode and related settings.
     """
     config = get_auth_config()
 
     return {
         "mode": config.mode,
-        "api_key_header": config.api_key_header,
-        "api_key_prefix": config.api_key_prefix,
     }

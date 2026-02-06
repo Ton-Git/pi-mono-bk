@@ -125,7 +125,7 @@ cp .env.example .env
 | `HOST` | `0.0.0.0` | Server host |
 | `PORT` | `8000` | Server port |
 | `DEBUG` | `false` | Enable debug mode |
-| `AUTH_MODE` | `passthrough` | Auth mode: `passthrough` or `managed` |
+| `AUTH_MODE` | `managed` | Auth mode: GitHub OAuth device flow |
 | `PIAI_MODULE_PATH` | `../ai` | Path to pi-ai Node.js module |
 | `PIAI_NODE_PATH` | `node` | Path to Node.js executable |
 | `CORS_ORIGINS` | `["*"]` | CORS allowed origins |
@@ -145,7 +145,7 @@ PIAI_MODULE_PATH=../ai
 PIAI_NODE_PATH=node
 
 # Authentication
-AUTH_MODE=passthrough
+AUTH_MODE=managed
 
 # CORS
 CORS_ORIGINS=["*"]
@@ -234,7 +234,6 @@ curl http://localhost:8000/v1/models
 ```bash
 curl -X POST http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_GITHUB_COPILOT_TOKEN" \
   -d '{
     "model": "claude-sonnet-4.5",
     "messages": [{"role": "user", "content": "Say hello!"}]
@@ -246,7 +245,6 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 ```bash
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
-  -H "x-api-key: YOUR_GITHUB_COPILOT_TOKEN" \
   -d '{
     "model": "claude-sonnet-4.5",
     "max_tokens": 1024,
@@ -264,9 +262,10 @@ curl -X POST http://localhost:8000/v1/messages \
 from openai import OpenAI
 
 # Initialize client pointing to your proxy
+# Note: api_key can be a dummy value since the proxy handles authentication via OAuth
 client = OpenAI(
     base_url="http://localhost:8000/v1",
-    api_key="your-github-copilot-token"  # Your GitHub Copilot token
+    api_key="dummy"  # Not used - proxy uses stored OAuth credentials
 )
 
 # Create a chat completion
@@ -288,9 +287,10 @@ print(response.choices[0].message.content)
 import anthropic
 
 # Initialize client pointing to your proxy
+# Note: api_key can be a dummy value since the proxy handles authentication via OAuth
 client = anthropic.Anthropic(
     base_url="http://localhost:8000/v1",
-    api_key="your-github-copilot-token"  # Your GitHub Copilot token
+    api_key="dummy"  # Not used - proxy uses stored OAuth credentials
 )
 
 # Create a message
@@ -312,7 +312,6 @@ print(message.content[0].text)
 # OpenAI streaming
 curl -X POST http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
     "model": "claude-sonnet-4.5",
     "messages": [{"role": "user", "content": "Count to 10"}],
@@ -322,7 +321,6 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 # Anthropic streaming
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
-  -H "x-api-key: YOUR_TOKEN" \
   -d '{
     "model": "claude-sonnet-4.5",
     "max_tokens": 100,
@@ -338,7 +336,7 @@ import OpenAI from 'openai';
 
 const client = new OpenAI({
   baseURL: 'http://localhost:8000/v1',
-  apiKey: 'your-github-copilot-token'
+  apiKey: 'dummy'  // Not used - proxy uses stored OAuth credentials
 });
 
 async function main() {
@@ -371,7 +369,7 @@ docker run -d \
   --name g-copilot-proxy \
   -p 8000:8000 \
   -v $(pwd)/../ai:/app/ai:ro \
-  -e AUTH_MODE=passthrough \
+  -e AUTH_MODE=managed \
   -e LOG_LEVEL=INFO \
   g-copilot-proxy
 ```
@@ -391,7 +389,7 @@ You can pass environment variables to Docker:
 docker run -d \
   --name g-copilot-proxy \
   -p 8000:8000 \
-  -e AUTH_MODE=passthrough \
+  -e AUTH_MODE=managed \
   -e CORS_ORIGINS='["https://yourdomain.com"]' \
   -e LOG_LEVEL=INFO \
   g-copilot-proxy
@@ -401,56 +399,106 @@ docker run -d \
 
 ## Authentication
 
-The proxy supports two authentication modes:
+The proxy uses GitHub's Device Authorization Flow (OAuth) for authentication. Personal access tokens are not supported by GitHub Copilot's API.
 
-### Pass-Through Mode (Default)
+### Step-by-Step Login Guide
 
-In pass-through mode, clients send their GitHub Copilot token directly with each request.
+**Step 1: Start the server**
 
-**Setup:**
 ```bash
-# In .env
-AUTH_MODE=passthrough
+poetry run uvicorn app.main:app --reload
 ```
 
-**Usage:**
-```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Authorization: Bearer YOUR_GITHUB_COPILOT_TOKEN" \
-  -d '{"model": "claude-sonnet-4.5", "messages": [...]}'
-```
+**Step 2: Initiate the OAuth flow**
 
-### Managed Mode
-
-In managed mode, the server handles OAuth and stores credentials for all requests.
-
-**Setup:**
-```bash
-# In .env
-AUTH_MODE=managed
-```
-
-**Usage:**
-
-1. Initiate OAuth:
 ```bash
 curl -X POST http://localhost:8000/auth/login
 ```
 
-2. Check authentication status:
+**Response:**
+```json
+{
+  "status": "started",
+  "message": "OAuth flow initiated. Poll /auth/status to check completion."
+}
+```
+
+**Step 3: Watch the server logs for the device code**
+
+The server will output a GitHub device activation URL and code:
+
+```
+INFO:     Auth URL: https://github.com/login/device
+INFO:     Instructions: Please enter code: XXXX-XXXXX
+```
+
+**Step 4: Complete authentication in your browser**
+
+1. Visit the URL shown in logs (usually `https://github.com/login/device`)
+2. Enter the device code displayed in the server logs
+3. Authorize the GitHub Copilot application
+
+**Step 5: Verify authentication status**
+
 ```bash
 curl http://localhost:8000/auth/status
 ```
 
-3. Make requests (no token needed):
-```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -d '{"model": "claude-sonnet-4.5", "messages": [...]}'
+**Response when authenticated:**
+```json
+{
+  "mode": "managed",
+  "authenticated": true,
+  "enterprise_url": null
+}
 ```
 
-4. Logout (optional):
+**Step 6: Make API requests (no token needed)**
+
+```bash
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-sonnet-4.5",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+### How It Works
+
+The proxy uses the `@mariozechner/pi-ai` Node.js module to handle GitHub's Device Authorization Flow:
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌──────────────────┐
+│ g-copilot-proxy │ ──▶ │ @mariozechner/  │ ──▶ │ GitHub OAuth API │
+│ (Python/FastAPI)│     │ pi-ai (Node.js) │     │ (Device Flow)    │
+└─────────────────┘     └─────────────────┘     └──────────────────┘
+```
+
+1. pi-ai requests a device code from GitHub
+2. GitHub returns a code and verification URL
+3. You visit the URL and enter the code
+4. pi-ai polls GitHub until you complete authorization
+5. Credentials are saved to `.copilot-auth.json`
+
+### Logout
+
+To clear stored credentials:
+
 ```bash
 curl -X POST http://localhost:8000/auth/logout
+```
+
+### Credential Storage
+
+OAuth credentials are stored in `.copilot-auth.json` in the project directory:
+
+```json
+{
+  "access": "ghu_...",
+  "refresh": "ghr_...",
+  "expires": "2025-01-01T00:00:00Z"
+}
 ```
 
 ---
@@ -506,9 +554,9 @@ Update `PIAI_NODE_PATH` if node is not in your PATH.
 **Issue:** `401 Unauthorized`
 
 **Solution:**
-- Verify your GitHub Copilot token is valid
-- Check that `Authorization` header is formatted correctly: `Bearer <token>`
-- If using managed mode, ensure you've completed the OAuth flow
+- Ensure you've completed the OAuth flow at `/auth/login`
+- Check authentication status with `curl http://localhost:8000/auth/status`
+- Re-authenticate if credentials have expired
 
 ### CORS Errors
 
@@ -539,24 +587,27 @@ The proxy exposes all models available through GitHub Copilot, including Claude 
 
 Yes! The proxy includes Docker support, health checks, and is designed for production use. See the [Docker Deployment](#docker-deployment) section.
 
-### Is my API key stored?
+### Where are my credentials stored?
 
-- **Pass-through mode:** No, your token is forwarded directly to GitHub Copilot
-- **Managed mode:** Yes, OAuth credentials are stored in `.copilot-auth.json`
+OAuth credentials are stored in `.copilot-auth.json` in the project directory after you complete the device authorization flow.
 
 ### Can I host this publicly?
 
 Yes, but you should:
-1. Set `AUTH_MODE=managed` to avoid exposing individual tokens
-2. Restrict `CORS_ORIGINS` to your domain
-3. Use HTTPS (via nginx or a load balancer)
-4. Implement rate limiting
+1. Restrict `CORS_ORIGINS` to your domain
+2. Use HTTPS (via nginx or a load balancer)
+3. Implement rate limiting
 
-### How do I get a GitHub Copilot token?
+### How do I authenticate with GitHub Copilot?
 
-You can obtain your GitHub Copilot token through:
-- GitHub Settings → Developer Settings → Personal Access Tokens
-- Or by using the proxy's built-in OAuth flow in managed mode
+The proxy uses GitHub's Device Authorization Flow (OAuth). Personal access tokens are not supported by GitHub Copilot's API.
+
+1. Set `AUTH_MODE=managed` in your `.env` file (this is the default)
+2. Start the server: `poetry run uvicorn app.main:app --reload`
+3. Run `curl -X POST http://localhost:8000/auth/login`
+4. Follow the device flow instructions in the server logs
+5. Visit the GitHub URL, enter the code, and authorize
+6. Credentials are automatically stored in `.copilot-auth.json`
 
 ---
 

@@ -8,7 +8,7 @@ OpenAI & Anthropic compatible proxy server for GitHub Copilot.
 - Anthropic-compatible `/v1/messages` endpoint
 - Full SSE streaming support
 - Model aliasing for easy model selection
-- Pass-through and managed authentication modes
+- GitHub OAuth device flow for authentication
 - Docker deployment ready
 
 ## Quick Start
@@ -38,7 +38,7 @@ docker build -t g-copilot-proxy .
 # Run container
 docker run -p 8000:8000 \
     -v $(pwd)/../ai:/app/ai:ro \
-    -e AUTH_MODE=passthrough \
+    -e AUTH_MODE=managed \
     g-copilot-proxy
 
 # Or with docker-compose
@@ -54,7 +54,7 @@ from openai import OpenAI
 
 client = OpenAI(
     base_url="http://localhost:8000/v1",
-    api_key="your-github-copilot-token"
+    api_key="dummy"  # Not used - proxy uses OAuth credentials
 )
 
 response = client.chat.completions.create(
@@ -72,7 +72,7 @@ import anthropic
 
 client = anthropic.Anthropic(
     base_url="http://localhost:8000/v1",
-    api_key="your-github-copilot-token"
+    api_key="dummy"  # Not used - proxy uses OAuth credentials
 )
 
 message = client.messages.create(
@@ -90,7 +90,6 @@ print(message.content[0].text)
 # OpenAI format
 curl -X POST http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
     "model": "claude-sonnet-4.5",
     "messages": [{"role": "user", "content": "Hello!"}]
@@ -99,7 +98,6 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 # Anthropic format
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
     "model": "claude-sonnet-4.5",
     "max_tokens": 1024,

@@ -659,7 +659,7 @@ COPILOT_BASE_URL=https://api.individual.githubcopilot.com
 COPILOT_ENTERPRISE_URL=
 
 # Authentication
-AUTH_MODE=passthrough
+AUTH_MODE=managed
 API_KEY_HEADER=Authorization
 API_KEY_PREFIX=Bearer
 

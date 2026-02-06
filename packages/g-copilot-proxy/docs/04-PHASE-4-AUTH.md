@@ -785,7 +785,7 @@ Update `.env.example` with auth options:
 # Authentication Mode
 # passthrough: Client sends GitHub Copilot token in Authorization header
 # managed: Server handles OAuth flow and stores credentials
-AUTH_MODE=passthrough
+AUTH_MODE=managed
 ```
 
 ## Verification
