@@ -1,0 +1,25 @@
+### OpenAI Chat Completion
+### POST /v1/chat/completions
+
+@baseUrl = http://localhost:8000
+@model = gpt-5-mini
+
+POST {{baseUrl}}/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "{{model}}",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a helpful assistant."
+    },
+    {
+      "role": "user",
+      "content": "Hello! Can you explain what this API does?"
+    }
+  ],
+  "stream": false,
+  "temperature": 0.7,
+  "max_tokens": 500
+}

@@ -1,0 +1,22 @@
+### Anthropic Message
+### POST /v1/messages
+
+@baseUrl = http://localhost:8000
+@model = claude-3-5-sonnet-20241022
+
+POST {{baseUrl}}/v1/messages
+Content-Type: application/json
+Anthropic-Version: 2023-06-01
+
+{
+  "model": "{{model}}",
+  "max_tokens": 500,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello! Can you explain what this API does?"
+    }
+  ],
+  "system": "You are a helpful assistant.",
+  "temperature": 0.7
+}
