@@ -1,49 +1,51 @@
-# Multi-stage build for g-copilot-proxy
+# Dockerfile for g-copilot-proxy (TypeScript version)
+# Single runtime (Node.js) - no Python needed!
 
-# Stage 1: Builder
-FROM python:3.11-slim AS builder
+FROM node:20-alpine AS builder
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    nodejs \
-    npm \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache python3 make g++
 
-# Install Poetry
-RUN pip install poetry
-
-# Set working directory
-WORKDIR /build
-
-# Copy dependency files
-COPY pyproject.toml ./
-
-# Configure Poetry
-RUN poetry config virtualenvs.create false \
-    && poetry config virtualenvs.in-project false
-
-# Install dependencies
-RUN poetry install --no-dev --no-root --no-interaction --no-ansi
-
-# Stage 2: Runtime
-FROM python:3.11-slim
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    nodejs \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd -m -u 1000 appuser
-
-# Set working directory
 WORKDIR /app
 
-# Copy Python dependencies from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy package files
+COPY package-ts.json package.json
+COPY tsconfig.json ./
+COPY vitest.config.ts ./
 
-# Copy application code
-COPY --chown=appuser:appuser . .
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY src/ ./src/
+
+# Build TypeScript
+RUN npm run build
+
+# Runtime stage
+FROM node:20-alpine AS runtime
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+WORKDIR /app
+
+# Copy package files
+COPY package-ts.json package.json
+
+# Install production dependencies only
+RUN npm ci --only=production
+
+# Copy built files from builder
+COPY --from=builder /app/dist ./dist
+
+# Create data directory for auth storage
+RUN mkdir -p /app/data
+
+# Create non-root user
+RUN addgroup -g 1001 -S appuser && \
+    adduser -S -u 1001 -G appuser appuser && \
+    chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
@@ -53,7 +55,8 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+  CMD node -e "require('node-fetch').default('http://localhost:8000/health')" || exit 1
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the app
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/index.js"]
