@@ -38,32 +38,35 @@ export class OAuthManager {
 		this.pendingLogins.set(loginId, response);
 
 		// Start OAuth flow in background
-		this.performLogin(loginId, options, { ...callbacks, onAuth: async (url, instructions) => {
-			// Extract user code from instructions
-			let userCode = "";
-			let deviceCode = "";
-			if (instructions?.includes("code:")) {
-				const match = instructions.match(/code:\s*([A-Z0-9-]+)/i);
-				if (match) {
-					userCode = match[1];
-					deviceCode = match[1];
+		this.performLogin(loginId, options, {
+			...callbacks,
+			onAuth: async (url, instructions) => {
+				// Extract user code from instructions
+				let userCode = "";
+				let deviceCode = "";
+				if (instructions?.includes("code:")) {
+					const match = instructions.match(/code:\s*([A-Z0-9-]+)/i);
+					if (match) {
+						userCode = match[1];
+						deviceCode = match[1];
+					}
 				}
-			}
 
-			// Resolve the promise so login() can return
-			resolveAuth?.({ url, userCode, deviceCode });
+				// Resolve the promise so login() can return
+				resolveAuth?.({ url, userCode, deviceCode });
 
-			// Update pending state
-			const current = this.pendingLogins.get(loginId);
-			if (current) {
-				current.verificationUri = url;
-				current.userCode = userCode;
-				current.deviceCode = deviceCode;
-				current.status = "pending";
-			}
+				// Update pending state
+				const current = this.pendingLogins.get(loginId);
+				if (current) {
+					current.verificationUri = url;
+					current.userCode = userCode;
+					current.deviceCode = deviceCode;
+					current.status = "pending";
+				}
 
-			callbacks.onAuth?.(url, instructions);
-		}});
+				callbacks.onAuth?.(url, instructions);
+			},
+		});
 
 		// Wait for auth data to be available
 		const authData = await authDataPromise;
