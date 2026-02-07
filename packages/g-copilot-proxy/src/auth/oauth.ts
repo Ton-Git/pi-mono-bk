@@ -18,23 +18,63 @@ export class OAuthManager {
 
 	/**
 	 * Initiate GitHub Copilot OAuth login
-	 * This starts the device authorization flow in the background
+	 * Returns immediately with verification URL and code when available
 	 */
 	async login(options: LoginOptions = {}, callbacks: AuthCallbacks = {}): Promise<LoginResponse> {
+		// Create a promise that resolves when onAuth is called
+		let resolveAuth: ((data: { url: string; userCode: string; deviceCode?: string }) => void) | null = null;
+		const authDataPromise = new Promise<{ url: string; userCode: string; deviceCode?: string }>((resolve) => {
+			resolveAuth = resolve;
+		});
+
 		// Generate a unique ID for this login attempt
 		const loginId = `login-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 		// Initialize pending state
 		const response: LoginResponse = {
-			status: "started",
-			message: "OAuth flow initiated. Check server logs for device code.",
+			status: "pending",
+			message: "OAuth flow initiated",
 		};
 		this.pendingLogins.set(loginId, response);
 
 		// Start OAuth flow in background
-		this.performLogin(loginId, options, callbacks);
+		this.performLogin(loginId, options, { ...callbacks, onAuth: async (url, instructions) => {
+			// Extract user code from instructions
+			let userCode = "";
+			let deviceCode = "";
+			if (instructions?.includes("code:")) {
+				const match = instructions.match(/code:\s*([A-Z0-9-]+)/i);
+				if (match) {
+					userCode = match[1];
+					deviceCode = match[1];
+				}
+			}
 
-		return response;
+			// Resolve the promise so login() can return
+			resolveAuth?.({ url, userCode, deviceCode });
+
+			// Update pending state
+			const current = this.pendingLogins.get(loginId);
+			if (current) {
+				current.verificationUri = url;
+				current.userCode = userCode;
+				current.deviceCode = deviceCode;
+				current.status = "pending";
+			}
+
+			callbacks.onAuth?.(url, instructions);
+		}});
+
+		// Wait for auth data to be available
+		const authData = await authDataPromise;
+
+		return {
+			status: "pending",
+			message: "Please authenticate with the provided code",
+			verificationUri: authData.url,
+			userCode: authData.userCode,
+			deviceCode: authData.deviceCode,
+		};
 	}
 
 	/**

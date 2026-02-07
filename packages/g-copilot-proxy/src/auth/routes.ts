@@ -40,24 +40,14 @@ export function createAuthRoutes(config: Config) {
 			const response = await oauth.login(
 				{ enterpriseUrl: enterprise_url },
 				{
-					onAuth: (url, instructions) => {
-						logger.info(`OAuth: ${url}`, { instructions });
-					},
 					onProgress: (message) => {
 						logger.info(`OAuth progress: ${message}`);
 					},
 				},
 			);
 
-			// Note: In a real implementation, you'd need to handle the async completion
-			// and store credentials when ready. For now, this initiates the flow.
-
-			return c.json({
-				status: response.status,
-				message:
-					response.message ||
-					"OAuth flow initiated. Check server logs for device code. Poll /auth/status to check completion.",
-			});
+			// Return the verification URL and code to the client
+			return c.json(response);
 		},
 	);
 

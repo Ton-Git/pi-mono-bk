@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
-    "dev": "tsgo -p tsconfig.json --watch",
+    "dev": "tsgo -p tsconfig.json --watch & sleep 1 && node dist/index.js",
     "build": "tsgo -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "vitest",
