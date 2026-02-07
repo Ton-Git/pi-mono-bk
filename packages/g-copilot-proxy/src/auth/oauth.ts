@@ -5,6 +5,7 @@
 
 import { loginGitHubCopilot } from "@mariozechner/pi-ai";
 import { getLogger } from "../logger.js";
+import type { CredentialStorage } from "./storage.js";
 import type { AuthCallbacks, LoginOptions, LoginResponse } from "./types.js";
 
 const logger = getLogger();
@@ -15,6 +16,11 @@ const logger = getLogger();
  */
 export class OAuthManager {
 	private pendingLogins = new Map<string, LoginResponse>();
+	private storage: CredentialStorage;
+
+	constructor(storage: CredentialStorage) {
+		this.storage = storage;
+	}
 
 	/**
 	 * Initiate GitHub Copilot OAuth login
@@ -87,7 +93,7 @@ export class OAuthManager {
 		try {
 			logger.info("Starting GitHub Copilot OAuth flow...");
 
-			const _credentials = await loginGitHubCopilot({
+			const credentials = await loginGitHubCopilot({
 				onAuth: (url: string, instructions?: string) => {
 					logger.info(`Auth URL: ${url}`);
 					if (instructions) {
@@ -127,6 +133,15 @@ export class OAuthManager {
 				current.status = "complete";
 				current.message = "Login successful!";
 			}
+
+			// Save credentials to storage
+			await this.storage.save({
+				accessToken: credentials.access,
+				refreshToken: credentials.refresh,
+				expiresAt: credentials.expires,
+				enterpriseUrl: (credentials as any).enterpriseUrl,
+				createdAt: Date.now(),
+			});
 
 			logger.info("OAuth login successful");
 		} catch (error) {
@@ -171,9 +186,9 @@ let oauthManagerInstance: OAuthManager | null = null;
 /**
  * Get or create the global OAuth manager instance
  */
-export function getOAuthManager(): OAuthManager {
+export function getOAuthManager(storage: CredentialStorage): OAuthManager {
 	if (!oauthManagerInstance) {
-		oauthManagerInstance = new OAuthManager();
+		oauthManagerInstance = new OAuthManager(storage);
 	}
 	return oauthManagerInstance;
 }

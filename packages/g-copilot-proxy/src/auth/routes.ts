@@ -20,7 +20,7 @@ const logger = getLogger();
 export function createAuthRoutes(config: Config) {
 	const app = new Hono();
 	const storage = new CredentialStorage(config.DATA_DIR);
-	const oauth = getOAuthManager();
+	const oauth = getOAuthManager(storage);
 
 	/**
 	 * POST /auth/login
